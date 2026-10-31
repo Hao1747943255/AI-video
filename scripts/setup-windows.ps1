@@ -1,5 +1,6 @@
 param(
     [string]$InstallRoot = "$env:LOCALAPPDATA\FrameAI",
+    [string]$PipIndexUrl = 'https://pypi.org/simple',
     [switch]$SkipModels
 )
 $ErrorActionPreference = 'Stop'
@@ -63,9 +64,8 @@ try {
     $venvDir = Join-Path $comfyDir '.venv'
     if (-not (Test-Path (Join-Path $venvDir 'Scripts\python.exe'))) { Invoke-Checked 'py.exe' @('-3.12', '-m', 'venv', $venvDir) }
     $python = Join-Path $venvDir 'Scripts\python.exe'
-    Invoke-Checked $python @('-m', 'pip', 'install', '--upgrade', 'pip')
-    Invoke-Checked $python @('-m', 'pip', 'install', 'torch==2.8.0', 'torchvision==0.23.0', 'torchaudio==2.8.0', '--index-url', 'https://download.pytorch.org/whl/cu128')
-    Invoke-Checked $python @('-m', 'pip', 'install', '-r', (Join-Path $comfyDir 'requirements.txt'))
+    . (Join-Path $PSScriptRoot 'python-deps.ps1')
+    Install-FramePythonDependencies -Python $python -ComfyDir $comfyDir -IndexUrl $PipIndexUrl
     Write-Host 'Checking CUDA support. If this fails, update the NVIDIA driver and rerun.'
     Invoke-Checked $python @('-c', 'import torch; assert torch.cuda.is_available(); print(torch.cuda.get_device_name(0))')
 

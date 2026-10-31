@@ -72,6 +72,18 @@ powershell.exe -NoProfile -ExecutionPolicy RemoteSigned -File .\scripts\install-
 
 每次下载使用独立临时目录，校验 `v0.3.59` 的固定提交 `72212fef660bcd7d9702fa52011d089c027a64d8` 后才启用。已有可用源码会复用；缺少 `main.py` 的旧残留目录会改名为 `ComfyUI.incomplete-...`，其中的文件不会删除。若三次均失败，需要先恢复到 GitHub 的连接，再继续安装；该步骤不需要 GitHub token。
 
+### Python 依赖下载超时或找不到 aiohttp
+
+如果安装 Python 依赖时反复出现 `Read timed out`，随后报告 `No matching distribution found for aiohttp>=3.11.8`，先检查下载源是否可达。Python 3.12 / Windows x64 有对应的 aiohttp 安装包；该错误本身不足以证明版本不兼容。
+
+新版脚本为 pip 升级、PyTorch 和 ComfyUI 依赖安装设置 120 秒下载超时、最多 5 次重试。已安装的指定 CUDA 版 PyTorch 会复用，安装后执行 `pip check` 及现有 CUDA 可用性检查。默认主索引为官方 PyPI；网络不稳定时，可以为 pip 升级和 ComfyUI 普通依赖指定清华 TUNA HTTPS 镜像：
+
+```powershell
+powershell.exe -NoProfile -ExecutionPolicy RemoteSigned -File "D:\ai_video\AI-video\scripts\setup-windows.ps1" -InstallRoot "D:\ai_video\FrameRuntime" -PipIndexUrl "https://pypi.tuna.tsinghua.edu.cn/simple"
+```
+
+该参数不修改全局 pip 配置。PyTorch 下载仍使用官方 CUDA 12.8 索引，模型权重来源保持原样。脚本保留安装缓存和已装包，不使用 `--trusted-host` 或关闭 TLS 校验。若该镜像无法访问，可不传 `-PipIndexUrl` 使用官方源，或提供你能访问的 HTTPS 包索引。镜像说明见[清华 TUNA PyPI 帮助](https://mirrors.tuna.tsinghua.edu.cn/help/pypi/)。
+
 ### 启动服务
 
 在项目目录运行：

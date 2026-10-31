@@ -93,15 +93,22 @@ Windows 安装器在 Winget 下载 FFmpeg 失败时，会使用带固定 SHA-256
 
 ComfyUI 源码克隆使用单次命令级 HTTP/1.1 和 TLS 校验，并最多重试三次；每次在新目录下载，验证固定提交后启用，已有不完整目录会备份保留。可运行 `powershell.exe -NoProfile -ExecutionPolicy RemoteSigned -File tests/comfy-source.tests.ps1` 验证连接失败重试、旧文件保留、固定提交检查和重试上限；测试模拟 Git 传输，不下载模型。
 
+Python 依赖安装默认使用官方 PyPI，下载超时为 120 秒、最多重试 5 次。网络缓慢时可在 Windows 安装命令中增加 `-PipIndexUrl "https://pypi.tuna.tsinghua.edu.cn/simple"`，仅为 pip 升级和 ComfyUI 普通依赖选择 HTTPS 镜像，不修改全局 pip 配置；PyTorch 仍使用官方 CUDA 12.8 源，已安装的指定 CUDA 包会直接复用。安装后运行 `pip check`，随后检查 CUDA。详细恢复步骤见 [Windows 本地部署说明](local/Windows本地部署.md)。`tests/python-deps.tests.ps1` 使用模拟 pip 验证包源选择、CUDA 复用、失败处理及依赖文件保留，不安装真实模型。
+
 ## 项目结构
 
 ```text
 src/                 React 工作台和响应式样式
 server/app.js        HTTP API、持久化与任务队列
 server/providers.js  FFmpeg 演示渲染与 Sora 接口
+scripts/python-deps.ps1  Python 依赖安装、下载重试和包源选择
 public/images/       随应用提供的演示照片
 tests/               API 集成测试和浏览器流程测试
 ```
+
+## 更新记录
+
+- Windows Python 依赖安装恢复：增加 120 秒下载超时、有限重试和 `-PipIndexUrl` 参数；复用已安装的指定 CUDA 版 PyTorch，并在依赖安装后校验包依赖。包源切换不改变模型来源或关闭 TLS 校验。
 
 ## 文档维护约定
 
