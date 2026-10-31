@@ -84,6 +84,19 @@ powershell.exe -NoProfile -ExecutionPolicy RemoteSigned -File "D:\ai_video\AI-vi
 
 该参数不修改全局 pip 配置。PyTorch 下载仍使用官方 CUDA 12.8 索引，模型权重来源保持原样。脚本保留安装缓存和已装包，不使用 `--trusted-host` 或关闭 TLS 校验。若该镜像无法访问，可不传 `-PipIndexUrl` 使用官方源，或提供你能访问的 HTTPS 包索引。镜像说明见[清华 TUNA PyPI 帮助](https://mirrors.tuna.tsinghua.edu.cn/help/pypi/)。
 
+### 启动 ComfyUI 时提示 No module named 'requests'
+
+若日志已识别显卡和 PyTorch，但在 `app/frontend_management.py` 的 `import requests` 处停止，说明 ComfyUI 虚拟环境缺少这个启动依赖。`pip check` 只能验证已声明的包依赖，所以此前通过检查仍可能遇到此错误。新版安装器显式安装 `requests>=2.32.5,<3` 并验证导入，不改动固定版本 ComfyUI 的依赖清单。
+
+已有环境无需重跑完整安装。在当前启动窗口按 `Ctrl+C`，然后依次执行下面两条命令；第一条成功后再执行第二条：
+
+```powershell
+& "D:\ai_video\FrameRuntime\ComfyUI\.venv\Scripts\python.exe" -m pip install "requests>=2.32.5,<3" --index-url "https://pypi.tuna.tsinghua.edu.cn/simple" --timeout 120 --retries 5
+& "D:\ai_video\FrameRuntime\ComfyUI\.venv\Scripts\python.exe" -c "import requests; print(requests.__version__)"
+```
+
+这是为 ComfyUI 自己的 Python 环境补装依赖，不能换成系统 `pip`。清华 TUNA 无法连接时，将 `--index-url` 换为 `https://pypi.org/simple` 即可。确认导入成功后，再执行 `npm.cmd --prefix "D:\ai_video\AI-video" run local:start`。已校验的 Wan 模型和 Qwen 保留，不重新下载。
+
 ### Wan 视频模型下载失败
 
 如果终端已经显示 Python 包安装成功、`No broken requirements found`、CUDA 显卡名称和 Qwen 下载 `success`，但随后 `models:download` 报网络失败，说明安装停在 Wan 权重下载。保留当前环境，更新项目后可以仅恢复此步骤：

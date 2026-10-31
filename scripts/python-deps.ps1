@@ -33,6 +33,9 @@ function Install-FramePythonDependencies {
         Invoke-FramePip -Python $Python -Arguments ($base + @('install', 'torch==2.8.0', 'torchvision==0.23.0', 'torchaudio==2.8.0', '--index-url', 'https://download.pytorch.org/whl/cu128'))
     }
     Write-Host "Installing ComfyUI dependencies using $IndexUrl (timeout 120 seconds, up to 5 retries)."
-    Invoke-FramePip -Python $Python -Arguments ($base + @('install', '-r', $requirements, '--index-url', $IndexUrl))
+    # ComfyUI v0.3.59 imports requests directly but does not declare it in requirements.txt.
+    Invoke-FramePip -Python $Python -Arguments ($base + @('install', '-r', $requirements, 'requests>=2.32.5,<3', '--index-url', $IndexUrl))
     Invoke-FramePip -Python $Python -Arguments @('-m', 'pip', 'check')
+    & $Python -c "import requests; print('ComfyUI requests import: OK')"
+    if ($LASTEXITCODE -ne 0) { throw 'ComfyUI startup dependency validation failed: requests could not be imported. Check the virtual environment before starting ComfyUI.' }
 }

@@ -105,7 +105,16 @@ Windows 安装器在 Winget 下载 FFmpeg 失败时，会使用带固定 SHA-256
 
 ComfyUI 源码克隆使用单次命令级 HTTP/1.1 和 TLS 校验，并最多重试三次；每次在新目录下载，验证固定提交后启用，已有不完整目录会备份保留。可运行 `powershell.exe -NoProfile -ExecutionPolicy RemoteSigned -File tests/comfy-source.tests.ps1` 验证连接失败重试、旧文件保留、固定提交检查和重试上限；测试模拟 Git 传输，不下载模型。
 
-Python 依赖安装默认使用官方 PyPI，下载超时为 120 秒、最多重试 5 次。网络缓慢时可在 Windows 安装命令中增加 `-PipIndexUrl "https://pypi.tuna.tsinghua.edu.cn/simple"`，仅为 pip 升级和 ComfyUI 普通依赖选择 HTTPS 镜像，不修改全局 pip 配置；PyTorch 仍使用官方 CUDA 12.8 源，已安装的指定 CUDA 包会直接复用。安装后运行 `pip check`，随后检查 CUDA。详细恢复步骤见 [Windows 本地部署说明](local/Windows本地部署.md)。`tests/python-deps.tests.ps1` 使用模拟 pip 验证包源选择、CUDA 复用、失败处理及依赖文件保留，不安装真实模型。
+Python 依赖安装默认使用官方 PyPI，下载超时为 120 秒、最多重试 5 次。网络缓慢时可在 Windows 安装命令中增加 `-PipIndexUrl "https://pypi.tuna.tsinghua.edu.cn/simple"`，仅为 pip 升级和 ComfyUI 普通依赖选择 HTTPS 镜像，不修改全局 pip 配置；PyTorch 仍使用官方 CUDA 12.8 源，已安装的指定 CUDA 包会直接复用。安装器显式补充 ComfyUI 启动使用的 `requests>=2.32.5,<3`，不修改 ComfyUI 原始依赖清单；安装后运行 `pip check` 和 `import requests` 检查，随后检查 CUDA。`pip check` 只检查包声明的依赖关系，不能证明源码使用的模块都已声明或可以导入。详细恢复步骤见 [Windows 本地部署说明](local/Windows本地部署.md)。`tests/python-deps.tests.ps1` 使用模拟 pip 验证包源选择、CUDA 复用、失败处理、requests 导入检查及依赖文件保留，不安装真实模型。
+
+已有环境启动时报 `ModuleNotFoundError: No module named 'requests'` 时，可先在正在启动的终端按 `Ctrl+C`，再只为 ComfyUI 虚拟环境补装并检查：
+
+```powershell
+& "D:\ai_video\FrameRuntime\ComfyUI\.venv\Scripts\python.exe" -m pip install "requests>=2.32.5,<3" --index-url "https://pypi.tuna.tsinghua.edu.cn/simple" --timeout 120 --retries 5
+& "D:\ai_video\FrameRuntime\ComfyUI\.venv\Scripts\python.exe" -c "import requests; print(requests.__version__)"
+```
+
+补装成功后执行 `npm.cmd --prefix "D:\ai_video\AI-video" run local:start`。这里使用清华 TUNA PyPI 镜像；也可将索引换为官方 `https://pypi.org/simple`。该恢复步骤不重新安装 PyTorch 或下载模型。
 
 Wan 下载器现在显示经过脱敏的底层网络错误码，每个文件最多尝试 3 次，并从 `.part` 分片继续。默认端点仍是官方 Hugging Face；可用 `--endpoint https://hf-mirror.com` 显式选择第三方 HF-Mirror，或用 `--from-dir` 导入已下载的同版文件。无论从哪里取得文件，均使用 `local/models.json` 中原有的大小、固定版本和 SHA-256 校验，校验成功后才启用，不读取 Hugging Face token。`HF_ENDPOINT` 也可指定默认下载端点；完整 Windows 安装脚本使用 `-ModelEndpoint` 参数。仅下载模型不需要重新安装 Python、PyTorch 或 Qwen。
 
@@ -127,6 +136,7 @@ tests/               API 集成测试和浏览器流程测试
 
 ## 更新记录
 
+- 修复 ComfyUI 启动缺少 `requests`：显式安装该运行依赖，在依赖关系检查后增加模块导入验证，并提供只修复已有虚拟环境的命令。
 - GitHub 连接失败时可使用离线 Git 更新包：自动查找 Git、检查包和仓库状态，仅快进更新已有分支并保留本机配置和模型；提供 ZIP 导出与独立 Windows 启动器。
 - Wan 模型下载恢复：保留分片并有限重试、显示底层网络错误码，增加 HTTPS 下载端点选择和本地文件导入；校验清单保持原样，既有模型文件不会因下载恢复而被覆盖。
 - Windows Python 依赖安装恢复：增加 120 秒下载超时、有限重试和 `-PipIndexUrl` 参数；复用已安装的指定 CUDA 版 PyTorch，并在依赖安装后校验包依赖。包源切换不改变模型来源或关闭 TLS 校验。
