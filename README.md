@@ -38,6 +38,18 @@ npm start
 
 `npm start` 现在会先自动构建前端（需要安装完整开发依赖）。开发模式使用 5173，生产模式使用 3001。如果出现 `Cannot GET /`，先停止旧进程，在项目根目录执行 `npm run build` 再执行 `npm start`，无需重装模型。`/api/health` 可查看应用标识和 `frontendReady` 状态；缺少构建文件时首页会显示修复命令。
 
+## GitHub 连接失败时离线更新代码
+
+GitHub Desktop 提示 `Failed to connect to github.com port 443` 表示连接 GitHub 超时。可以使用维护者提供的 `AI-video-offline-update-<提交>.zip` 更新已有仓库，无需重装 Python、PyTorch、Qwen 或模型。此方法更新本地代码，不会修复电脑到 GitHub 的网络连接。
+
+1. 将整个 ZIP 解压到仓库外，例如 `D:\ai_video\offline-update`，停止正在运行的项目，再双击其中的 `start-update.cmd`。
+2. 默认更新 `D:\ai_video\AI-video` 的 `codex/local-ai-video` 分支；其他安装位置可执行 `node .\apply-offline-update.mjs "你的仓库根目录"`。
+3. 看到“离线更新成功”或“已经是更新包中的版本”即完成。网络恢复后在 GitHub Desktop 执行 Fetch origin，刷新远端状态。
+
+更新需要已有 Node.js 22+ 和 Git 或 GitHub Desktop，无需管理员权限、npm 安装或 GitHub 联网。更新器自动查找 GitHub Desktop 内置 Git；检查仓库来源、当前分支、工作区、bundle 的 SHA-256 与提交关系，只允许快进更新。存在未提交改动、未结束的 Git 操作或本地独有提交时停止，不自动暂存、切换或重置。`.env`、`data/`、已下载模型及 `FrameRuntime` 保留；同名忽略文件冲突也会阻止更新。远端地址与 `FETCH_HEAD` 保持原样，GitHub Desktop 可能暂时显示旧的 origin 状态。
+
+维护者在提交源码和 README 后运行 `npm run offline:export`，会在忽略的 `artifacts/` 下生成含完整分支 Git bundle、清单、独立更新器、Windows 启动器及中文说明的 ZIP。导出需要 Git、Node.js 和 Python 3（标准 ZIP 库）；使用更新包不需要 Python。导出会检查历史中常见的配置、模型和运行目录路径；分享前仍须检查历史内容，不应把路径检查视为完整的密钥扫描。清单内 SHA-256 用于完整性检查，并非独立数字签名。
+
 ## 生成模式
 
 ### 本地 Wan 2.1（真实 AI，无 API 费用）
@@ -97,6 +109,8 @@ Python 依赖安装默认使用官方 PyPI，下载超时为 120 秒、最多重
 
 Wan 下载器现在显示经过脱敏的底层网络错误码，每个文件最多尝试 3 次，并从 `.part` 分片继续。默认端点仍是官方 Hugging Face；可用 `--endpoint https://hf-mirror.com` 显式选择第三方 HF-Mirror，或用 `--from-dir` 导入已下载的同版文件。无论从哪里取得文件，均使用 `local/models.json` 中原有的大小、固定版本和 SHA-256 校验，校验成功后才启用，不读取 Hugging Face token。`HF_ENDPOINT` 也可指定默认下载端点；完整 Windows 安装脚本使用 `-ModelEndpoint` 参数。仅下载模型不需要重新安装 Python、PyTorch 或 Qwen。
 
+`node --test tests/offline-update.test.js` 使用临时 Git 仓库和真实 bundle 验证快进更新、重复执行、配置和数据保留，以及脏工作区、错误分支、提交分叉、旧包回退和包损坏时拒绝更新。测试不连接 GitHub；Windows 启动器仍需在目标电脑验证。
+
 ## 项目结构
 
 ```text
@@ -105,12 +119,15 @@ server/app.js        HTTP API、持久化与任务队列
 server/providers.js  FFmpeg 演示渲染与 Sora 接口
 scripts/python-deps.ps1  Python 依赖安装、下载重试和包源选择
 scripts/download-models.mjs  Wan 模型续传、端点选择和校验导入
+scripts/offline-update.mjs  从本地 Git bundle 安全快进已有仓库
+scripts/export-offline-update.mjs  导出带清单及 Windows 启动器的离线更新 ZIP
 public/images/       随应用提供的演示照片
 tests/               API 集成测试和浏览器流程测试
 ```
 
 ## 更新记录
 
+- GitHub 连接失败时可使用离线 Git 更新包：自动查找 Git、检查包和仓库状态，仅快进更新已有分支并保留本机配置和模型；提供 ZIP 导出与独立 Windows 启动器。
 - Wan 模型下载恢复：保留分片并有限重试、显示底层网络错误码，增加 HTTPS 下载端点选择和本地文件导入；校验清单保持原样，既有模型文件不会因下载恢复而被覆盖。
 - Windows Python 依赖安装恢复：增加 120 秒下载超时、有限重试和 `-PipIndexUrl` 参数；复用已安装的指定 CUDA 版 PyTorch，并在依赖安装后校验包依赖。包源切换不改变模型来源或关闭 TLS 校验。
 
