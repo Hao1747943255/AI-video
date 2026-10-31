@@ -5,7 +5,6 @@ param(
 $ErrorActionPreference = 'Stop'
 $projectDir = Split-Path -Parent $PSScriptRoot
 $comfyDir = Join-Path $InstallRoot 'ComfyUI'
-$comfyVersion = 'v0.3.59'
 
 function Invoke-Checked {
     param([string]$Command, [string[]]$Arguments)
@@ -59,13 +58,8 @@ try {
         Refresh-Path
         Invoke-Checked 'py.exe' @('-3.12', '-c', 'import sys; print(sys.version)')
     }
-    if (-not (Test-Path (Join-Path $comfyDir 'main.py'))) {
-        if (Test-Path $comfyDir) { throw 'ComfyUI directory exists but is not a usable checkout. Preserve it and choose another InstallRoot.' }
-        Invoke-Checked 'git.exe' @('clone', '--depth', '1', '--branch', $comfyVersion, 'https://github.com/Comfy-Org/ComfyUI.git', $comfyDir)
-    } else {
-        $version = (& git.exe -C $comfyDir describe --tags --exact-match 2>$null)
-        if ($LASTEXITCODE -ne 0 -or $version -ne $comfyVersion) { throw 'Existing ComfyUI is not the pinned release. Preserve it and choose a different InstallRoot; no files were reset.' }
-    }
+    . (Join-Path $PSScriptRoot 'comfy-source.ps1')
+    Initialize-FrameComfySource -Target $comfyDir
     $venvDir = Join-Path $comfyDir '.venv'
     if (-not (Test-Path (Join-Path $venvDir 'Scripts\python.exe'))) { Invoke-Checked 'py.exe' @('-3.12', '-m', 'venv', $venvDir) }
     $python = Join-Path $venvDir 'Scripts\python.exe'

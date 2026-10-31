@@ -91,6 +91,8 @@ UI 测试创建带独立标记的测试作品，流程完成后仅删除该作�
 
 Windows 安装器在 Winget 下载 FFmpeg 失败时，会使用带固定 SHA-256 校验的官方 essentials ZIP 作为备用来源，也支持手动指定已下载的 ZIP。可运行 `powershell.exe -NoProfile -ExecutionPolicy RemoteSigned -File tests/ffmpeg-installer.tests.ps1` 验证错误校验值会在解压和修改 PATH 前被拒绝，并保留已有文件。该检查不安装真实工具；Windows 安装与网络连通性仍须在目标电脑验证。
 
+ComfyUI 源码克隆使用单次命令级 HTTP/1.1 和 TLS 校验，并最多重试三次；每次在新目录下载，验证固定提交后启用，已有不完整目录会备份保留。可运行 `powershell.exe -NoProfile -ExecutionPolicy RemoteSigned -File tests/comfy-source.tests.ps1` 验证连接失败重试、旧文件保留、固定提交检查和重试上限；测试模拟 Git 传输，不下载模型。
+
 ## 项目结构
 
 ```text

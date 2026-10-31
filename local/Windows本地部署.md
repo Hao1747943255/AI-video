@@ -66,6 +66,12 @@ powershell.exe -NoProfile -ExecutionPolicy RemoteSigned -File .\scripts\install-
 
 两种方式都使用官方发布元数据中的固定 SHA-256：`60f467265b1e312373dbcd92200c2618a74850f98d3d078e94296bb3fa2047ba`。完整安装版或其他版本的 ZIP 不匹配此校验值，请选择名称完全相同的 essentials ZIP。完成后重新运行主安装脚本继续安装剩余工具与模型；无需删除已有环境。
 
+### ComfyUI 克隆出现 Connection was reset
+
+如果在 `Cloning into ... ComfyUI` 阶段出现 `Recv failure: Connection was reset`，说明 Git 源码传输连接被重置。Git、Python、FFmpeg、Ollama 等已完成的安装会保留。更新代码后重跑原安装命令，新版只对 ComfyUI 克隆使用 HTTP/1.1，并保留 TLS 校验，最多尝试三次。
+
+每次下载使用独立临时目录，校验 `v0.3.59` 的固定提交 `72212fef660bcd7d9702fa52011d089c027a64d8` 后才启用。已有可用源码会复用；缺少 `main.py` 的旧残留目录会改名为 `ComfyUI.incomplete-...`，其中的文件不会删除。若三次均失败，需要先恢复到 GitHub 的连接，再继续安装；该步骤不需要 GitHub token。
+
 ### 启动服务
 
 在项目目录运行：
