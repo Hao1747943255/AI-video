@@ -4,6 +4,8 @@
 
 ## 在自己的电脑上免费运行真实模型
 
+只想先看界面时，可以运行 `npm run preview:export`，然后直接用浏览器打开 `artifacts/Frame-preview.html`。这个独立 HTML 内嵌所有图片、脚本和样式，无需服务器、Node.js 或模型即可查看界面。可切换风格、参数、导航和弹窗；视频生成和 AI 润色明确禁用。聊天中的 localhost 网页卡片不能用作可分享的云端预览地址。
+
 已增加 Ollama 提示词润色与 ComfyUI / Wan 2.1 本机视频生成接口，不需要付费 API token。针对 Windows 11、RTX 3060 Ti 8GB、16GB 内存准备了安装脚本和低显存参数。请先阅读 [Windows 本地部署说明](local/Windows本地部署.md)。该硬件从 512×288 / 288×512、2 秒视频开始，语言模型与视频模型错开运行。
 
 ```powershell
