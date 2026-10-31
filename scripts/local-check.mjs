@@ -7,7 +7,7 @@ console.log(`System: ${os.platform()} ${os.arch()}; RAM: ${(os.totalmem() / 2 **
 const gpu = spawnSync('nvidia-smi', ['--query-gpu=name,memory.total,driver_version', '--format=csv,noheader'], { encoding: 'utf8' });
 console.log(`NVIDIA GPU: ${gpu.status === 0 ? gpu.stdout.trim() : 'not detected (run this on your own computer)'}`);
 for (const [name, args] of [['ffmpeg', ['-version']], ['ollama', ['--version']], ['git', ['--version']]]) {
-  const result = spawnSync(name, args, { encoding: 'utf8' });
+  const result = spawnSync(name === 'ffmpeg' ? process.env.FFMPEG_PATH || name : name, args, { encoding: 'utf8' });
   console.log(`${name}: ${result.status === 0 ? 'installed' : 'not found on PATH'}`);
 }
 try {

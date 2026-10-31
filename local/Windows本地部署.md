@@ -48,6 +48,26 @@ Wan 文件来自 ComfyUI 官方示例指定的公开仓库。下载脚本固定�
 
 ## 3. 启动并验证
 
+### FFmpeg 下载出现 InternetOpenUrl / 0x80072efd
+
+这表示 Winget 下载 FFmpeg 安装包时连接失败。已经成功安装的 Git、Python 会保留。更新项目后重新运行安装脚本，新版会在 Winget 失败时自动使用 Windows 自带的 curl 下载官方 9.0.2 essentials ZIP（约 115MB），校验 SHA-256 再解压，并将工具目录追加到用户 PATH。它不会关闭 TLS 校验或跳过文件校验。
+
+只修复 FFmpeg 也可以运行：
+
+```powershell
+powershell.exe -NoProfile -ExecutionPolicy RemoteSigned -File .\scripts\install-ffmpeg.ps1 -InstallRoot D:\ai_video\FrameRuntime
+```
+
+如果 curl 也无法连接，在浏览器下载[官方 FFmpeg 9.0.2 essentials ZIP](https://github.com/GyanD/codexffmpeg/releases/download/9.0.2/ffmpeg-9.0.2-essentials_build.zip)，然后指定下载文件：
+
+```powershell
+powershell.exe -NoProfile -ExecutionPolicy RemoteSigned -File .\scripts\install-ffmpeg.ps1 -InstallRoot D:\ai_video\FrameRuntime -ArchivePath "$env:USERPROFILE\Downloads\ffmpeg-9.0.2-essentials_build.zip"
+```
+
+两种方式都使用官方发布元数据中的固定 SHA-256：`60f467265b1e312373dbcd92200c2618a74850f98d3d078e94296bb3fa2047ba`。完整安装版或其他版本的 ZIP 不匹配此校验值，请选择名称完全相同的 essentials ZIP。完成后重新运行主安装脚本继续安装剩余工具与模型；无需删除已有环境。
+
+### 启动服务
+
 在项目目录运行：
 
 ```powershell

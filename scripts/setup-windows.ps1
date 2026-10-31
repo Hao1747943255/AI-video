@@ -13,7 +13,8 @@ function Invoke-Checked {
     if ($LASTEXITCODE -ne 0) { throw "Command failed ($LASTEXITCODE): $Command" }
 }
 function Refresh-Path {
-    $env:Path = [Environment]::GetEnvironmentVariable('Path', 'Machine') + ';' + [Environment]::GetEnvironmentVariable('Path', 'User')
+    $parts = (@($env:Path, [Environment]::GetEnvironmentVariable('Path', 'Machine'), [Environment]::GetEnvironmentVariable('Path', 'User')) -join ';') -split ';'
+    $env:Path = ($parts | Where-Object { $_ } | Select-Object -Unique) -join ';'
 }
 function Ensure-Tool {
     param([string]$Command, [string]$Package)
@@ -38,10 +39,17 @@ try {
     $drive = Get-PSDrive -Name ((Split-Path -Qualifier $InstallRoot).TrimEnd(':'))
     if ($drive.Free -lt 50GB) { throw 'Less than 50 GB free on the installation drive. Select another -InstallRoot.' }
 
+    Refresh-Path
     Ensure-Tool 'git.exe' 'Git.Git'
     Ensure-Tool 'node.exe' 'OpenJS.NodeJS.LTS'
     Ensure-Tool 'py.exe' 'Python.Python.3.12'
-    Ensure-Tool 'ffmpeg.exe' 'Gyan.FFmpeg'
+    try { Ensure-Tool 'ffmpeg.exe' 'Gyan.FFmpeg' }
+    catch {
+        Write-Warning 'Winget could not install FFmpeg. Switching to the smaller official essentials archive with SHA-256 verification.'
+        . (Join-Path $PSScriptRoot 'install-ffmpeg.ps1') -InstallRoot $InstallRoot
+        $null = Install-FrameFfmpeg -Root $InstallRoot
+        Refresh-Path
+    }
     Ensure-Tool 'ollama.exe' 'Ollama.Ollama'
     $nodeMajor = [int]((& node.exe -p 'parseInt(process.versions.node)').Trim())
     if ($nodeMajor -lt 22) { throw 'Node.js 22 or newer is required. Update Node.js LTS and rerun.' }
@@ -75,6 +83,7 @@ try {
         $settings = @{
             COMFYUI_DIR = $comfyDir.Replace('\', '/')
             COMFYUI_PYTHON = $python.Replace('\', '/')
+            FFMPEG_PATH = (Get-Command ffmpeg.exe).Source.Replace('\', '/')
         }
         foreach ($name in $settings.Keys) {
             if (-not (Select-String -Path $envFile -Pattern "^\s*$name\s*=" -Quiet)) {
