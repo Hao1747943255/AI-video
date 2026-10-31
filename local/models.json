@@ -1,0 +1,21 @@
+{
+  "repo": "Comfy-Org/Wan_2.1_ComfyUI_repackaged",
+  "revision": "123acf1cc74bccbb9bfff8ac1ee72edc08c2341d",
+  "files": [
+    {
+      "path": "diffusion_models/wan2.1_t2v_1.3B_fp16.safetensors",
+      "size": 2838303560,
+      "sha256": "be531024cd9018cb5b48c40cfbb6a6191645b1c792eb8bf4f8c1c6e10f924dc5"
+    },
+    {
+      "path": "text_encoders/umt5_xxl_fp8_e4m3fn_scaled.safetensors",
+      "size": 6735906897,
+      "sha256": "c3355d30191f1f066b26d93fba017ae9809dce6c627dda5f6a66eaa651204f68"
+    },
+    {
+      "path": "vae/wan_2.1_vae.safetensors",
+      "size": 253815318,
+      "sha256": "2fc39d31359a4b0a64f55876d8ff7fa8d780956ae2cb13463b0223e15148976b"
+    }
+  ]
+}
