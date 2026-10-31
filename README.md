@@ -103,4 +103,10 @@ public/images/       随应用提供的演示照片
 tests/               API 集成测试和浏览器流程测试
 ```
 
+## 文档维护约定
+
+每次新增功能、调整现有功能或增加新模块，都同步更新本 README，说明变更内容及受影响的使用方法、命令、配置、依赖和限制。新增模块补充用途和项目结构说明，对用户可见的变更维护简明的中文更新记录，代码与文档一起提交。
+
+完整的长期协作偏好见 [AGENTS.md](AGENTS.md)，包括中文提交说明及环境发布后的 GitHub 同步规则。
+
 演示照片来源于 [Unsplash](https://unsplash.com/license)：[海面](https://images.unsplash.com/photo-1518837695005-2083093ee35b)、[森林](https://images.unsplash.com/photo-1448375240586-882707db888b)、[湖泊](https://images.unsplash.com/photo-1470770841072-f978cf4d019e)、[都市](https://images.unsplash.com/photo-1519608487953-e999c86e7455)。素材已打包在仓库，运行时无需访问图片网站。
