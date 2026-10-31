@@ -1,6 +1,7 @@
 param(
     [string]$InstallRoot = "$env:LOCALAPPDATA\FrameAI",
     [string]$PipIndexUrl = 'https://pypi.org/simple',
+    [string]$ModelEndpoint = 'https://huggingface.co',
     [switch]$SkipModels
 )
 $ErrorActionPreference = 'Stop'
@@ -95,7 +96,7 @@ try {
         }
         if (-not $SkipModels) {
             Invoke-Checked 'ollama.exe' @('pull', 'qwen3:4b')
-            Invoke-Checked 'npm.cmd' @('run', 'models:download', '--', $comfyDir)
+            Invoke-Checked 'npm.cmd' @('run', 'models:download', '--', $comfyDir, '--endpoint', $ModelEndpoint)
         }
         Invoke-Checked 'npm.cmd' @('run', 'build')
         Write-Host 'Setup files prepared. Run: npm.cmd run local:start'

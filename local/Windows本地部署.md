@@ -84,6 +84,38 @@ powershell.exe -NoProfile -ExecutionPolicy RemoteSigned -File "D:\ai_video\AI-vi
 
 该参数不修改全局 pip 配置。PyTorch 下载仍使用官方 CUDA 12.8 索引，模型权重来源保持原样。脚本保留安装缓存和已装包，不使用 `--trusted-host` 或关闭 TLS 校验。若该镜像无法访问，可不传 `-PipIndexUrl` 使用官方源，或提供你能访问的 HTTPS 包索引。镜像说明见[清华 TUNA PyPI 帮助](https://mirrors.tuna.tsinghua.edu.cn/help/pypi/)。
 
+### Wan 视频模型下载失败
+
+如果终端已经显示 Python 包安装成功、`No broken requirements found`、CUDA 显卡名称和 Qwen 下载 `success`，但随后 `models:download` 报网络失败，说明安装停在 Wan 权重下载。保留当前环境，更新项目后可以仅恢复此步骤：
+
+```powershell
+node "D:\ai_video\AI-video\scripts\download-models.mjs" "D:\ai_video\FrameRuntime\ComfyUI"
+```
+
+默认使用官方 Hugging Face。若无法连接，可以显式选择第三方 HF-Mirror：
+
+```powershell
+node "D:\ai_video\AI-video\scripts\download-models.mjs" "D:\ai_video\FrameRuntime\ComfyUI" --endpoint "https://hf-mirror.com"
+```
+
+完整安装命令也支持 `-ModelEndpoint "https://hf-mirror.com"`，它与 `-PipIndexUrl` 分别控制模型和 Python 包来源。HF-Mirror 不是 Hugging Face 官方站点；下载器不会自动切换端点，也不会向其发送 Hugging Face token。所有来源均按原始清单的固定版本、大小和 SHA-256 校验，不修改预期校验值。
+
+每个文件最多尝试 3 次，保留 `.part` 分片并校验断点响应。连接失败会显示如 `UND_ERR_CONNECT_TIMEOUT`、`ECONNRESET`、`ENOTFOUND` 等错误码，不打印代理凭据、完整签名链接或请求对象。若出现证书错误，保留 TLS 校验并检查受信任证书；如需使用已有 HTTP 代理，可通过其正常的 `HTTPS_PROXY` / `HTTP_PROXY` 环境配置运行，不把代理账号或密码发到聊天。
+
+也可以在浏览器或其他已验证的下载工具中取得以下三个相同版本的文件，将它们放在一个目录中，再离线导入。版本与校验值见 `local/models.json`；[官方文件目录](https://huggingface.co/Comfy-Org/Wan_2.1_ComfyUI_repackaged/tree/123acf1cc74bccbb9bfff8ac1ee72edc08c2341d/split_files)。
+
+| 文件名 | ComfyUI 下的目标目录 |
+| --- | --- |
+| wan2.1_t2v_1.3B_fp16.safetensors | models/diffusion_models |
+| umt5_xxl_fp8_e4m3fn_scaled.safetensors | models/text_encoders |
+| wan_2.1_vae.safetensors | models/vae |
+
+```powershell
+node "D:\ai_video\AI-video\scripts\download-models.mjs" "D:\ai_video\FrameRuntime\ComfyUI" --from-dir "D:\Downloads\Wan"
+```
+
+导入时不会请求网络，原始文件保留；目标文件已验证则复用，目标文件校验不符则停止并保留，不覆盖。导入过程需要足够空间同时保存原文件与目标副本。三个模型都通过校验后，再按下面步骤启动服务。镜像仅在云端验证过小范围请求，目标电脑的完整下载仍需实际运行确认。
+
 ### 启动服务
 
 在项目目录运行：
