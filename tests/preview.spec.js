@@ -23,6 +23,8 @@ test('standalone HTML works offline with embedded images, navigation and disable
   await expect(page.getByText('独立界面预览', { exact: true })).toBeVisible();
   await expect(page.getByRole('button', { name: '界面预览 · 生成需本地服务', exact: true })).toBeDisabled();
   await expect(page.getByRole('button', { name: '本地 AI 润色', exact: true })).toBeDisabled();
+  await expect(page.getByLabel('生成模式', { exact: true })).toHaveValue('comfyui');
+  await expect(page.getByLabel('视频时长')).toHaveValue('2');
   await expect.poll(() => page.locator('.preview-stage>img').evaluate(image => image.complete && image.naturalWidth > 0)).toBe(true);
   await page.screenshot({ path: path.join(root, 'artifacts/Frame-preview.png'), fullPage: true });
   await page.getByRole('button', { name: '灵感库', exact: true }).click();

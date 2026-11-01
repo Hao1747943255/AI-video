@@ -11,6 +11,7 @@ test('a duplicate backend fails clearly without logging startup success or stopp
   const root = fileURLToPath(new URL('../', import.meta.url));
   const directory = await mkdtemp(path.join(os.tmpdir(), 'frame-startup-'));
   await cp(path.join(root, 'server'), path.join(directory, 'server'), { recursive: true });
+  await cp(path.join(root, 'shared'), path.join(directory, 'shared'), { recursive: true });
   await writeFile(path.join(directory, 'package.json'), JSON.stringify({ type: 'module' }));
   await symlink(path.join(root, 'node_modules'), path.join(directory, 'node_modules'), 'junction');
   const existing = createServer((_req, res) => res.end('existing backend'));

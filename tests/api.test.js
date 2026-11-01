@@ -24,7 +24,7 @@ test('validates input, reports credentials safely and never falls back to demo f
   const config = await (await fetch(`${base}/api/config`)).json();
   assert.equal(config.soraReady, false);
   assert.equal(config.demoReady, true);
-  for (const invalid of [{ ...payload, prompt: '短' }, { ...payload, seconds: 5 }, { ...payload, ratio: '1:1' }, { ...payload, style: '__proto__' }, { ...payload, provider: 'other' }]) {
+  for (const invalid of [{ ...payload, prompt: '短' }, { ...payload, seconds: 61 }, { ...payload, ratio: '1:1' }, { ...payload, style: '__proto__' }, { ...payload, provider: 'other' }]) {
     assert.equal((await request('/api/jobs', invalid)).status, 400);
   }
   assert.equal((await request('/api/jobs', { ...payload, provider: 'sora' })).status, 503);

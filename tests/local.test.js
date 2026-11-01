@@ -4,7 +4,7 @@ import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import os from 'node:os';
 import { createHash } from 'node:crypto';
-import { createLocalServices, localUrl, MODEL_NAMES } from '../server/local.js';
+import { createLocalServices, localUrl, MODEL_NAMES, parseEnhancedPrompt } from '../server/local.js';
 import { downloadVerified } from '../scripts/download-models.mjs';
 import { createApp } from '../server/app.js';
 
@@ -32,7 +32,7 @@ test('checks actual named models, enhances via Ollama and unloads LLM after comp
     if (url.endsWith('/api/tags')) return Response.json({ models: [{ name: 'qwen3:4b' }] });
     if (url.endsWith('/object_info')) return Response.json(nodeInfo());
     if (url.endsWith('/free')) return Response.json({});
-    if (url.endsWith('/api/chat')) return Response.json({ message: { content: '清晨，小狐狸穿过薄雾笼罩的森林，镜头平稳跟随它的脚步，柔和阳光照亮苔藓。' } });
+    if (url.endsWith('/api/chat')) return Response.json({ message: { thinking: '用户要求描述小狐狸，我需要分析其意图。', content: JSON.stringify({ prompt: '清晨，小狐狸穿过薄雾笼罩的森林，镜头平稳跟随它的脚步，柔和阳光照亮苔藓。' }) } });
     throw new Error('Unexpected endpoint');
   } });
   const status = await services.inspect();
@@ -46,7 +46,81 @@ test('checks actual named models, enhances via Ollama and unloads LLM after comp
   assert.equal(body.think, false);
   assert.equal(body.stream, false);
   assert.equal(body.options.num_ctx, 4096);
+  assert.equal(body.format.type, 'object');
+  assert.deepEqual(body.format.required, ['prompt']);
+  assert.equal(body.format.additionalProperties, false);
+  assert.equal(body.format.properties.prompt.maxLength, 400);
   assert.equal(body.messages[1].content, payload.prompt);
+});
+
+test('enhancement accepts only the final structured prompt and rejects reasoning or malformed output', () => {
+  const prompt = '皮秒激光设备在诊室内运行，治疗头沿前臂纹身区域缓慢移动，镜头近距离平稳拍摄。';
+  assert.equal(parseEnhancedPrompt(JSON.stringify({ prompt: `  ${prompt}  ` })), prompt);
+  for (const content of [
+    undefined, '', '首先，用户要求生成一个皮秒机器洗纹身的提示词，我需要保留主体与意图。',
+    `<think>这是分析过程。</think>${JSON.stringify({ prompt })}`,
+    JSON.stringify({ prompt: `首先，用户要求生成一个提示词。${prompt}` }),
+    JSON.stringify({ prompt: `关键点：保留主体。\n${prompt}` }),
+    JSON.stringify({ prompt: `<think>分析主体</think>${prompt}` }),
+    JSON.stringify({ prompt, analysis: 'do not expose this' }),
+    JSON.stringify({ prompt: '短' }), JSON.stringify({ prompt: '字'.repeat(401) }),
+    JSON.stringify({ prompt: ['wrong type'] }), `\`\`\`json\n${JSON.stringify({ prompt })}\n\`\`\``,
+  ]) assert.throws(() => parseEnhancedPrompt(content), /原文未替换/);
+});
+
+test('local language requests carry bounded conversation turns and keep the latest instruction last', async () => {
+  let body;
+  const answer = '夜晚的诊疗室内，操作人员手持皮秒激光治疗头沿前臂纹身区域缓慢移动，固定近景。';
+  const services = createLocalServices({ request: async (url, options) => {
+    if (url.endsWith('/api/tags')) return Response.json({ models: [{ name: 'qwen3:4b' }] });
+    if (url.endsWith('/object_info')) return Response.json(nodeInfo());
+    if (url.endsWith('/free')) return Response.json({});
+    if (url.endsWith('/api/chat')) { body = JSON.parse(options.body); return Response.json({ message: { content: JSON.stringify({ prompt: answer }) } }); }
+    throw new Error('Unexpected endpoint');
+  } });
+  const context = { hasContext: true, preferences: '画面写实，保持设备清晰。',
+    lastSettings: { seconds: 8 }, currentSettings: { seconds: 2 },
+    recentTurns: [{ input: '皮秒设备在明亮诊疗室内缓慢操作，固定近景。', prompt: '明亮诊疗室内，操作人员手持皮秒激光治疗头沿前臂纹身区域移动。' }],
+    otherSessions: 'other-topic-must-not-be-read', reference: '白色治疗台与皮秒设备' };
+  assert.equal(await services.enhance('改成夜景', { context }), answer);
+  assert.equal(body.messages.at(-1).role, 'user');
+  assert.equal(body.messages.at(-1).content, '改成夜景');
+  assert.ok(body.messages.some(message => message.role === 'assistant' && message.content.includes('皮秒激光')));
+  assert.match(body.messages[0].content, /本次明确要求和当前参数优先/);
+  assert.match(JSON.stringify(body.messages), /画面写实/);
+  assert.doesNotMatch(JSON.stringify(body.messages), /other-topic-must-not-be-read/);
+  assert.equal(body.options.num_ctx, 16384);
+});
+
+test('an invalid language response never exposes its raw contents through the enhancement error', async () => {
+  const services = createLocalServices({ request: async url => {
+    if (url.endsWith('/api/tags')) return Response.json({ models: [{ name: 'qwen3:4b' }] });
+    if (url.endsWith('/object_info')) return Response.json(nodeInfo());
+    if (url.endsWith('/free')) return Response.json({});
+    if (url.endsWith('/api/chat')) return new Response('PRIVATE_TOKEN_中文路径 not valid JSON');
+    throw new Error('Unexpected endpoint');
+  } });
+  await assert.rejects(services.enhance(payload.prompt), error => {
+    assert.match(error.message, /无效数据.*原文未替换/);
+    assert.doesNotMatch(error.message, /PRIVATE_TOKEN|中文路径/);
+    return true;
+  });
+});
+
+test('failed or truncated enhancement can be retried and never returns a reasoning draft', async () => {
+  let result = { message: { content: '首先，用户要求生成提示词，需要分析场景。' } };
+  const services = createLocalServices({ request: async url => {
+    if (url.endsWith('/api/tags')) return Response.json({ models: [{ name: 'qwen3:4b' }] });
+    if (url.endsWith('/object_info')) return Response.json(nodeInfo());
+    if (url.endsWith('/free')) return Response.json({});
+    if (url.endsWith('/api/chat')) return Response.json(result);
+    throw new Error('Unexpected endpoint');
+  } });
+  await assert.rejects(services.enhance(payload.prompt), /原文未替换/);
+  result = { done_reason: 'length', message: { content: JSON.stringify({ prompt: payload.prompt }) } };
+  await assert.rejects(services.enhance(payload.prompt), /输出未完成/);
+  result = { message: { content: JSON.stringify({ prompt: payload.prompt }) } };
+  assert.equal(await services.enhance(payload.prompt), payload.prompt);
 });
 
 test('missing model files are reported as not ready, with no task submission', async () => {
@@ -60,6 +134,53 @@ test('missing model files are reported as not ready, with no task submission', a
   assert.equal(status.video.ready, false);
   assert.match(status.video.message, /wan2.1_t2v_1.3B/);
   await assert.rejects(services.render(payload, { dataDir: '/tmp', update() {} }), /缺少模型文件/);
+});
+
+test('local readiness preserves a safe refusal code instead of blaming missing models', async () => {
+  const services = createLocalServices({ request: async url => {
+    if (url.endsWith('/api/tags')) return Response.json({ models: [{ name: 'qwen3:4b' }] });
+    throw new TypeError('private-transport-details', { cause: { code: 'ECONNREFUSED' } });
+  } });
+  const status = await services.inspect();
+  assert.equal(status.language.ready, true);
+  assert.equal(status.video.ready, false);
+  assert.match(status.video.message, /ECONNREFUSED/);
+  assert.match(status.video.message, /检查视频节点与模型/);
+  assert.doesNotMatch(status.video.message, /private-transport-details|模型未安装/);
+});
+
+test('an HTTP workflow rejection remains distinct from a lost connection and hides response contents', async () => {
+  const services = createLocalServices({ request: async url => {
+    if (url.endsWith('/api/tags')) return Response.json({ models: [] });
+    if (url.endsWith('/object_info')) return Response.json(nodeInfo());
+    if (url.endsWith('/prompt')) return Response.json({ error: 'private-path-and-user-prompt' }, { status: 400 });
+    throw new Error('History must not be queried for a rejected workflow');
+  } });
+  await assert.rejects(services.render(payload, { dataDir: '/tmp', update() {} }), error => {
+    assert.match(error.message, /拒绝了工作流.*HTTP 400/);
+    assert.doesNotMatch(error.message, /无法连接|private-path-and-user-prompt/);
+    return true;
+  });
+});
+
+test('a lost connection after submission preserves the remote task and warns against duplicate submission', async () => {
+  let submissions = 0;
+  const updates = [];
+  const services = createLocalServices({ request: async url => {
+    if (url.endsWith('/api/tags')) return Response.json({ models: [] });
+    if (url.endsWith('/object_info')) return Response.json(nodeInfo());
+    if (url.endsWith('/prompt')) { submissions++; return Response.json({ prompt_id: 'accepted-remote', node_errors: {} }); }
+    throw new TypeError('sensitive-system-path', { cause: { code: 'ECONNRESET' } });
+  } });
+  await assert.rejects(services.render(payload, { dataDir: '/tmp', update: value => updates.push(value) }), error => {
+    assert.match(error.message, /ECONNRESET/);
+    assert.match(error.message, /任务已经提交/);
+    assert.match(error.message, /避免重复提交/);
+    assert.doesNotMatch(error.message, /sensitive-system-path/);
+    return true;
+  });
+  assert.equal(submissions, 1);
+  assert.deepEqual(updates, [{ remoteId: 'accepted-remote', progress: 2 }]);
 });
 
 for (const modern of [false, true]) test(`submits native Wan workflow, polls history and saves MP4 (${modern ? 'modern' : 'legacy'} SaveVideo schema)`, async () => {
@@ -144,7 +265,7 @@ test('HTTP accepts 2-second local jobs, runs the local provider and validates pr
   assert.equal((await post('/api/prompts/enhance', { prompt: '短' })).status, 400);
   const enhanced = await (await post('/api/prompts/enhance', { prompt: payload.prompt })).json();
   assert.match(enhanced.prompt, /柔和光线/);
-  assert.equal((await post('/api/jobs', { ...payload, seconds: 8 })).status, 400);
+  assert.equal((await post('/api/jobs', { ...payload, seconds: 61 })).status, 400);
   const response = await post('/api/jobs', payload);
   assert.equal(response.status, 202);
   const created = await response.json();
